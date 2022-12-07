@@ -1,0 +1,42 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - deploy
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: git checkout
+        uses: actions/checkout@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: palmswap
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push Hummingbot container
+        run: |
+          docker build -t ghcr.io/palmswap/hummingbot:latest .
+          docker push ghcr.io/palmswap/hummingbot:latest
+
+      - name: Build & push gateway container
+        run: |
+          cd gateway
+          docker build -t ghcr.io/palmswap/hummingbot-gateaway:latest .
+          docker push ghcr.io/palmswap/hummingbot-gateaway:latest
+
+      - name: Pulling the updated container on the host machine
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            docker login ghcr.io --username palmswap --password ${{ secrets.GITHUB_TOKEN }}
+            docker pull ghcr.io/palmswap/hummingbot
+            docker pull ghcr.io/palmswap/hummingbot-gateaway
