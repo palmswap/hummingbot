@@ -46,7 +46,7 @@
         "symbol": "mUSDT",
         "address": "0x171529efB5fD8AD86Ba8DDBD841bF9FcdF04CC88",
         "chainId": 97,
-        "decimals": 8,
+        "decimals": 18,
         "logoURI": "https://exchange.pancakeswap.finance/images/coins/0x55d398326f99059ff775485246999027b3197955.png"
       },
       {
