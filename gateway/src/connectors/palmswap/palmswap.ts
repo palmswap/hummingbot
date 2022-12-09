@@ -22,9 +22,7 @@ import { Contract } from '@ethersproject/contracts';
 import { formatUnits, parseUnits } from '@ethersproject/units';
 import clearingHouseABI from './clearing_house_abi.json';
 import clearingHouseViewerABI from './clearing_house_viewer_abi.json';
-import insuranceFundABI from './insurance_fund_abi.json';
 import ammABI from './amm_abi.json';
-import { JsonRpcProvider, Provider } from '@ethersproject/providers';
 
 const PnlCalcOption = {
   SPOT_PRICE: 0,
@@ -51,9 +49,7 @@ export class Palmswap implements Perpish {
   private _wallet?: Wallet;
   private _clearingHouse?: Contract;
   private _clearingHouseViewer?: Contract;
-  private _insuranceFund?: Contract;
   private _chain: string;
-  private _provider: Provider;
   private chainId;
   private tokenList: Record<string, Token> = {};
   private _markets: Markets = {};
@@ -68,9 +64,6 @@ export class Palmswap implements Perpish {
     this.bsc = BinanceSmartChain.getInstance(network);
     this.chainId = this.bsc.chainId;
     this._address = address ? address : '';
-    this._provider = new JsonRpcProvider(
-      'https://data-seed-prebsc-1-s3.binance.org:8545'
-    );
   }
 
   public static getInstance(
@@ -122,12 +115,6 @@ export class Palmswap implements Perpish {
           clearingHouseABI,
           this._wallet
         );
-        const insuranceFundAddress = await this._clearingHouse.insuranceFund();
-        this._insuranceFund = new Contract(
-          insuranceFundAddress,
-          insuranceFundABI,
-          this._wallet
-        );
       } catch (err) {
         logger.error(`Wallet ${this._address} not available.`);
         throw new HttpException(
@@ -177,24 +164,13 @@ export class Palmswap implements Perpish {
   }
 
   async getAccountValue(): Promise<Big> {
-    if (!this._clearingHouseViewer) {
-      throw new Error('ClearingHouseViewer has not been initialized');
+    const tokenInfo = this.bsc.getTokenBySymbol('mUSDT');
+    if (!tokenInfo) {
+      throw new Error("Can't determine account value");
     }
-    if (!this._insuranceFund) {
-      throw new Error('InsuranceFund has not been initialized');
-    }
-    let accountValue = new Big(0);
-
-    const amms = await this._insuranceFund.getAllAmms();
-    for (const amm of amms) {
-      const freeCollateral = await this._clearingHouseViewer.getFreeCollateral(
-        amm,
-        this._address
-      );
-      accountValue = accountValue.add(freeCollateral.toString());
-    }
-
-    return accountValue.div(1e18);
+    const contract = this.bsc.getContract(tokenInfo.address);
+    const accountValue = await contract.balanceOf(this._address);
+    return new Big(accountValue.toString()).div(1e18);
   }
 
   async getPositions(tickerSymbol: string): Promise<PerpPosition | undefined> {
@@ -317,7 +293,7 @@ export class Palmswap implements Perpish {
   getMarket(tickerSymbol: string): Contract {
     const address = this.amms[tickerSymbol];
     if (!this._markets[address]) {
-      this._markets[address] = new Contract(address, ammABI, this._provider);
+      this._markets[address] = new Contract(address, ammABI, this.bsc.provider);
     }
     return this._markets[address];
   }

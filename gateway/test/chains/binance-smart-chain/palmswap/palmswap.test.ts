@@ -95,13 +95,17 @@ const patchCHViewer = () => {
     },
   });
 };
-const patchInsuranceFund = () => {
-  patch(palmswap, '_insuranceFund', {
-    async getAllAmms() {
-      return [
-        '0xdAD1B29b17A2bBd51063d33846Fc6Fa446017B11',
-        '0xE7fbfbd41Dbc15A1b152A947c08312D42dC676ed',
-      ];
+const patchBsc = () => {
+  patch(palmswap, 'bsc', {
+    getTokenBySymbol() {
+      return { address: 'dummy' };
+    },
+    getContract() {
+      return {
+        async balanceOf() {
+          return parseUnits('10');
+        },
+      };
     },
   });
 };
@@ -111,7 +115,7 @@ describe('verify market functions', () => {
     patchMarket();
 
     const pairs = palmswap.availablePairs();
-    expect(pairs).toEqual(['ETHUSDT', 'BTCUSDT']);
+    expect(pairs).toEqual(['ETHmUSDT', 'BTCmUSDT']);
   });
 
   it('tickerSymbol should return prices', async () => {
@@ -126,7 +130,7 @@ describe('verify market functions', () => {
   it('market state should return boolean', async () => {
     patchMarket();
 
-    const state = await palmswap.isMarketActive('ETHUSDT');
+    const state = await palmswap.isMarketActive('ETHmUSDT');
     expect(state).toEqual(true);
   });
 });
@@ -134,7 +138,7 @@ describe('verify market functions', () => {
 describe('verify perp position', () => {
   it('getPositions should return data', async () => {
     patchCHViewer();
-    const pos = await palmswap.getPositions('ETHUSDT');
+    const pos = await palmswap.getPositions('ETHmUSDT');
     expect(pos).toHaveProperty('positionAmt');
     expect(pos).toHaveProperty('positionSide');
     expect(pos).toHaveProperty('unrealizedProfit');
@@ -150,7 +154,7 @@ describe('verify perp open/close position', () => {
     patchCH();
     patchMarket();
 
-    const pos = await palmswap.openPosition(true, 'ETHUSDT', '0.01', '1/10');
+    const pos = await palmswap.openPosition(true, 'ETHmUSDT', '0.01', '1/10');
     expect(pos.hash).toEqual(
       '0x75f98675a8f64dcf14927ccde9a1d59b67fa09b72cc2642ad055dae4074853d9' // noqa: mock
     );
@@ -159,7 +163,7 @@ describe('verify perp open/close position', () => {
   it('getAccountValue should return', async () => {
     patchCH();
     patchCHViewer();
-    patchInsuranceFund();
+    patchBsc();
 
     const bal = await palmswap.getAccountValue();
     expect(bal.toString()).toEqual('10');
@@ -169,7 +173,7 @@ describe('verify perp open/close position', () => {
     patchCH();
 
     await expect(async () => {
-      await palmswap.closePosition('ETHUSDT');
+      await palmswap.closePosition('ETHmUSDT');
     }).toBeTruthy();
   });
 });
