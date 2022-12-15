@@ -93,6 +93,9 @@ export class Palmswap implements Perpish {
         SERVICE_UNITIALIZED_ERROR_CODE
       );
     for (const token of this.bsc.storedTokenList) {
+      if (token.symbol === 'USDT') {
+        token.address = '0x171529efB5fD8AD86Ba8DDBD841bF9FcdF04CC88';
+      }
       this.tokenList[token.address] = new Token(
         this.chainId,
         token.address,
@@ -164,11 +167,11 @@ export class Palmswap implements Perpish {
   }
 
   async getAccountValue(): Promise<Big> {
-    const tokenInfo = this.bsc.getTokenBySymbol('mUSDT');
+    const tokenInfo = this.bsc.getTokenBySymbol('USDT');
     if (!tokenInfo) {
       throw new Error("Can't determine account value");
     }
-    const contract = this.bsc.getContract(tokenInfo.address);
+    const contract = this.bsc.getContract(tokenInfo.address, this._wallet);
     const accountValue = await contract.balanceOf(this._address);
     return new Big(accountValue.toString()).div(1e18);
   }
